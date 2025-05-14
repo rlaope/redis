@@ -292,6 +292,28 @@ int parseExtendedStringArgumentsOrReply(client *c, int *flags, int *unit, robj *
 /* SET key value [NX] [XX] [KEEPTTL] [GET] [EX <seconds>] [PX <milliseconds>]
  *     [EXAT <seconds-timestamp>][PXAT <milliseconds-timestamp>] */
 void setCommand(client *c) {
+    long long start_time = ustime();
+
+    const char *keyname = c->argv[1]->ptr;
+    const char *client_ip = c->client_addr ? c->client_addr : "unknown";
+    int client_port = c->client_port;
+
+    serverLog(LL_NOTICE, "[SET START] key=%s client=%s:%d", keyname, client_ip, client_port);
+
+    robj *val = c->argv[2];
+    setKey(c,c->db,c->argv[1],val,0);
+    signalModifiedKey(c,c->db,c->argv[1]);
+    notifyKeyspaceEvent(NOTIFY_STRING,"set",c->argv[1],c->db->id);
+    server.dirty++;
+    addReply(c,shared.ok);
+
+    long long end_time = ustime();
+    long long duration = end_time - start_time;
+
+    serverLog(LL_NOTICE,
+        "[SET END] key=%s client=%s:%d duration=%lldus timestamp=%lld",
+        keyname, client_ip, client_port, duration, start_time);
+    
     robj *expire = NULL;
     int unit = UNIT_SECONDS;
     int flags = OBJ_NO_FLAGS;
@@ -334,6 +356,28 @@ int getGenericCommand(client *c) {
 }
 
 void getCommand(client *c) {
+    long long start_time = ustime();
+
+    const char *keyname = c->argv[1]->ptr;
+    const char *client_ip = c->client_addr ? c->client_addr : "unknown";
+    int client_port = c->client_port;
+
+    serverLog(LL_NOTICE, "[GET START] key=%s client=%s:%d", keyname, client_ip, client_port);
+
+    robj *o;
+    if ((o = lookupKeyReadOrReply(c,c->argv[1],shared.null[c->resp])) == NULL)
+        return;
+
+    if (checkType(c,o,OBJ_STRING)) return;
+    addReplyBulk(c,o);
+
+    long long end_time = ustime();
+    long long duration = end_time - start_time;
+
+    serverLog(LL_NOTICE,
+        "[GET END] key=%s client=%s:%d duration=%lldus timestamp=%lld",
+        keyname, client_ip, client_port, duration, start_time);
+    
     getGenericCommand(c);
 }
 
