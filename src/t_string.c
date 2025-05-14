@@ -334,6 +334,29 @@ int getGenericCommand(client *c) {
 }
 
 void getCommand(client *c) {
+    long long start_time = ustime(); // microsecond precision
+
+    const char *keyname = c->argv[1]->ptr;
+    const char *client_ip = c->client_addr ? c->client_addr : "unknown";
+    int client_port = c->client_port;
+
+    serverLog(LL_NOTICE, "[GET START] key=%s client=%s:%d", keyname, client_ip, client_port);
+
+    robj *o;
+    if ((o = lookupKeyReadOrReply(c,c->argv[1],shared.null[c->resp])) == NULL)
+        return;
+
+    if (checkType(c,o,OBJ_STRING)) return;
+    addReplyBulk(c,o);
+
+
+    long long end_time = ustime();
+    long long duration_usec = end_time - start_time;
+
+    serverLog(LL_NOTICE,
+        "[GET END] key=%s client=%s:%d duration=%lldus time=%lld",
+        keyname, client_ip, client_port, duration_usec, start_time);
+    
     getGenericCommand(c);
 }
 
