@@ -4043,6 +4043,20 @@ uint64_t getCommandFlags(client *c) {
  * other operations can be performed by the caller. Otherwise
  * if C_ERR is returned the client was destroyed (i.e. after QUIT). */
 int processCommand(client *c) {
+    if (c->argc >= 2 && c->cmd->firstkey >= 1) {
+        int first = c->cmd->firstkey;
+        int last = c->cmd->lastkey > 0 ? c->cmd->lastkey : first;
+        for (int i = first; i <= last && i < c->argc; i++) {
+            const char *keystr = c->argv[i]->ptr;
+            const char *client_ip = c->client_addr ? c->client_addr : "unknown";
+            int client_port = c->client_port;
+
+            serverLog(LL_NOTICE,
+                "[ACCESS] cmd=%s key=%s client=%s:%d",
+                c->cmd->name, keystr, client_ip, client_port);
+        }
+    }
+    
     if (!scriptIsTimedout()) {
         /* Both EXEC and scripts call call() directly so there should be
          * no way in_exec or scriptIsRunning() is 1.
